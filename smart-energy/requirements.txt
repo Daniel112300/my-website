@@ -1,0 +1,9 @@
+flask>=2.0
+flask-sqlalchemy>=3.0
+pymysql
+python-barcode
+qrcode
+pillow
+flask-wtf
+flask-login
+flask-mail

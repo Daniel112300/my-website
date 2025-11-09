@@ -1,0 +1,49 @@
+<!-- base.html -->
+<!doctype html> <!-- 宣告 HTML5 文件 -->
+<html lang="zh-Hant"> <!-- 設定語言為繁體中文 -->
+<head>
+  <meta charset="utf-8"> <!-- 使用 UTF-8 編碼 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- 響應式設定，支援手機 -->
+  <title>{% block title %}Smart Energy{% endblock %}</title> <!-- 頁面標題（子頁面可覆蓋） -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}"> <!-- 載入主樣式檔 -->
+</head>
+
+<body>
+  <!-- =============================== -->
+  <!-- 頂部導覽列 -->
+  <!-- =============================== -->
+  <header class="site-header"> <!-- 網站頂端 -->
+    <h1>Smart Energy 智慧能源系統</h1> <!-- 系統主標題 -->
+    <nav> <!-- 導覽連結 -->
+      <a href="{{ url_for('index') }}">首頁</a> <!-- 回首頁 -->
+      <a href="/device/state">電器控制</a> <!-- 功能1：電器狀態 -->
+      <a href="/usage/daily">用電統計</a> <!-- 功能2：用電量 -->
+      <a href="/auto/decide">自動控制</a> <!-- 功能3：溫度判斷 -->
+    </nav>
+  </header>
+
+  <!-- =============================== -->
+  <!-- 主內容區 -->
+  <!-- =============================== -->
+  <main class="container"> <!-- 主內容容器 -->
+    {% with messages = get_flashed_messages(with_categories=true) %} <!-- 若有訊息，顯示出來 -->
+      {% if messages %}
+        <ul class="flash"> <!-- 訊息列表 -->
+          {% for cat, msg in messages %} <!-- 逐一顯示訊息 -->
+            <li class="flash-{{ cat }}">{{ msg }}</li> <!-- 顯示訊息文字 -->
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %} <!-- 留給子頁面插入內容 -->
+  </main>
+
+  <!-- =============================== -->
+  <!-- 頁尾區 -->
+  <!-- =============================== -->
+  <footer class="site-footer"> <!-- 頁尾 -->
+    <small>© 2025 Smart Energy System</small> <!-- 版權資訊 -->
+  </footer>
+</body>
+</html>
