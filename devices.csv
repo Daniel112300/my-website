@@ -1,4 +1,0 @@
-device_id,user_id,device_name,device_type,model_number,location,rated_power,is_active,created_at,updated_at
-1,1,客廳冷氣,air_conditioner,AC001-LIVING,客廳,3.50,1,2025-11-14 00:00:00,2025-11-14 00:00:00
-2,1,臥室冷氣,air_conditioner,AC002-BEDROOM,主臥室,2.80,1,2025-11-14 00:00:00,2025-11-14 00:00:00
-3,1,餐廳主燈,light,LIGHT004-DINING,餐廳,0.02,1,2025-11-14 00:00:00,2025-11-14 00:00:00
