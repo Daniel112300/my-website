@@ -1,0 +1,3 @@
+user_id,username,password_hash,email,role,created_at
+1,xiaoming,$2y$10$abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJK,xiaoming@example.com,user,2025-11-14 00:00:00
+2,admin_user,$2y$10$zyxwvutsrqponmlkjihgfedcba0987654321ZYXWVUTSRQP,admin@example.com,admin,2025-11-14 00:00:00
