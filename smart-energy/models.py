@@ -1,30 +1,89 @@
 # models.py
 # ==========================================
-# 負責定義資料庫模型 (資料表結構)
+# 資料庫模型定義檔案
+# 定義所有資料表的 SQLAlchemy 模型
 # ==========================================
-    # 匯入 SQLAlchemy ORM
-from werkzeug.security import generate_password_hash  # 匯入密碼加密函式
 
-from flask_sqlalchemy import SQLAlchemy          
-db = SQLAlchemy()                                   # 建立 SQLAlchemy 物件
+from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
-# ------------------------------------------
-# 類別名稱：User
-# 用途：儲存使用者帳號與密碼資料
-# ------------------------------------------
-class User(db.Model):                               # 建立 User 資料表
-    id = db.Column(db.Integer, primary_key=True)    # 主鍵
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)  # 使用者名稱
-    password_hash = db.Column(db.String(256), nullable=False)  # 加密後的密碼
+# 建立資料庫物件
+db = SQLAlchemy()
 
-    def set_password(self, password: str):          # 定義設定密碼的函式
-        self.password_hash = generate_password_hash(password, method="scrypt")  # 使用 scrypt 加密
+# ==========================================
+# Device 模型 (設備資料表)
+# ==========================================
+class Device(db.Model):
+    __tablename__ = 'devices'
+    
+    device_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    device_name = db.Column(db.String(100), nullable=False)
+    device_type = db.Column(db.String(50), nullable=False)
+    model_number = db.Column(db.String(50))
+    location = db.Column(db.String(100))
+    rated_power = db.Column(db.DECIMAL(6, 2))  # 額定功率(kW)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now)
+    
+    def to_dict(self):
+        """將模型轉換為字典格式"""
+        return {
+            'device_id': self.device_id,
+            'user_id': self.user_id,
+            'device_name': self.device_name,
+            'device_type': self.device_type,
+            'model_number': self.model_number,
+            'location': self.location,
+            'rated_power': float(self.rated_power) if self.rated_power else None,
+            'rated_power_watts': float(self.rated_power) * 1000 if self.rated_power else None,
+            'is_active': self.is_active
+        }
+    
+    def __repr__(self):
+        return f'<Device {self.device_id}: {self.device_name}>'
 
-# ------------------------------------------
-# 類別名稱：Report
-# 用途：儲存報表資料 (編號與檔名)
-# ------------------------------------------
-class Report(db.Model):                             # 建立 Report 資料表
-    id = db.Column(db.Integer, primary_key=True)    # 主鍵
-    serial = db.Column(db.String(80), unique=True, nullable=False, index=True)   # 報表序號
-    filename = db.Column(db.String(120), nullable=False, index=True)             # 檔案名稱
+# ==========================================
+# PowerLog 模型 (電力使用記錄表)
+# ==========================================
+class PowerLog(db.Model):
+    __tablename__ = 'power_logs'
+    
+    log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    device_id = db.Column(db.Integer, nullable=False)
+    power_watts = db.Column(db.DECIMAL(8, 2))  # 功率(瓦)
+    hours = db.Column(db.DECIMAL(6, 2))  # 使用時數
+    log_date = db.Column(db.Date, nullable=False)
+    energy_consumed = db.Column(db.DECIMAL(8, 4))
+    cost = db.Column(db.DECIMAL(8, 2))
+    electricity_rate = db.Column(db.DECIMAL(6, 4), default=3.20)
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+    
+    # 建立複合唯一索引
+    __table_args__ = (
+        db.UniqueConstraint('device_id', 'log_date', name='uk_device_date'),
+        db.Index('idx_log_date', 'log_date'),
+        db.Index('idx_device_date', 'device_id', 'log_date'),
+        {'mysql_engine': 'InnoDB', 
+         'mysql_charset': 'utf8mb4', 
+         'mysql_collate': 'utf8mb4_unicode_ci',
+         'comment': '電力使用記錄表'}
+    )
+    
+    def to_dict(self):
+        """將模型轉換為字典格式"""
+        return {
+            'log_id': self.log_id,
+            'device_id': self.device_id,
+            'power_watts': float(self.power_watts) if self.power_watts else None,
+            'hours': float(self.hours) if self.hours else None,
+            'log_date': self.log_date.strftime('%Y-%m-%d') if self.log_date else None,
+            'energy_consumed': float(self.energy_consumed) if self.energy_consumed else 0,
+            'cost': float(self.cost) if self.cost else 0,
+            'electricity_rate': float(self.electricity_rate) if self.electricity_rate else 0,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<PowerLog {self.log_id}: Device {self.device_id} on {self.log_date}>'

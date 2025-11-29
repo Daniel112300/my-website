@@ -63,6 +63,8 @@ CREATE TABLE `device_status` (
 CREATE TABLE `power_logs` (
   `log_id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '記錄ID',
   `device_id` INT NOT NULL COMMENT '設備ID',
+  `power_watts` DECIMAL(8,2) COMMENT '功率(瓦)',
+  `hours` DECIMAL(6,2) COMMENT '使用時數',
   `log_date` DATE NOT NULL COMMENT '記錄日期',
   `energy_consumed` DECIMAL(8,4) COMMENT '用電量(kWh)',
   `cost` DECIMAL(8,2) COMMENT '電費(元)',
