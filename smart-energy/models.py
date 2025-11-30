@@ -146,3 +146,41 @@ class PowerLog(db.Model):
     
     def __repr__(self):
         return f'<PowerLog {self.log_id}: Device {self.device_id} on {self.log_date}>'
+
+# ==========================================
+# EnvironmentLog 模型 (環境資料記錄表)
+# ==========================================
+class EnvironmentLog(db.Model):
+    __tablename__ = 'environment_logs'
+    
+    log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    log_datetime = db.Column(db.TIMESTAMP, nullable=False, index=True)
+    outdoor_temp = db.Column(db.DECIMAL(4, 2))  # 室外溫度（攝氏）
+    indoor_temp = db.Column(db.DECIMAL(4, 2))   # 室內溫度（攝氏）
+    humidity = db.Column(db.DECIMAL(5, 2))      # 濕度（%）
+    source_type = db.Column(db.Enum('real', 'simulated'), default='simulated')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+    
+    # 建立索引
+    __table_args__ = (
+        db.Index('idx_log_datetime', 'log_datetime'),
+        {'mysql_engine': 'InnoDB', 
+         'mysql_charset': 'utf8mb4', 
+         'mysql_collate': 'utf8mb4_unicode_ci',
+         'comment': '環境資料記錄表'}
+    )
+    
+    def to_dict(self):
+        """將模型轉換為字典格式"""
+        return {
+            'log_id': self.log_id,
+            'log_datetime': self.log_datetime.strftime('%Y-%m-%d %H:%M:%S') if self.log_datetime else None,
+            'outdoor_temp': float(self.outdoor_temp) if self.outdoor_temp else None,
+            'indoor_temp': float(self.indoor_temp) if self.indoor_temp else None,
+            'humidity': float(self.humidity) if self.humidity else None,
+            'source_type': self.source_type,
+            'created_at': self.created_at.strftime('%Y-%m-%d %H:%M:%S') if self.created_at else None
+        }
+    
+    def __repr__(self):
+        return f'<EnvironmentLog {self.log_id}: {self.log_datetime}>'
