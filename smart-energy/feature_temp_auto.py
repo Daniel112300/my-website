@@ -10,10 +10,14 @@ bp = Blueprint("auto", __name__, template_folder="templates")  # 建立 Blueprin
 TARGET_TEMP = 26.0                               # 設定溫度閾值
 STATE = {"aircon": False}                        # 模擬空調狀態
 
-@bp.post("/decide")                              # 定義路由：根據溫度判斷
+@bp.route("/decide", methods=["GET", "POST"])    # 定義路由：根據溫度判斷（支援 GET 和 POST）
 def decide_by_temp():
-    data = request.get_json(silent=True) or {}   # 取得傳入 JSON
-    t = data.get("temp")                         # 取得溫度
+    # GET 請求從 query string 取得參數，POST 從 JSON body 取得
+    if request.method == "GET":
+        t = request.args.get("temp", type=float) # 從 URL 參數取得溫度
+    else:
+        data = request.get_json(silent=True) or {}   # 取得傳入 JSON
+        t = data.get("temp")                         # 取得溫度
     if not isinstance(t, (int, float)):          # 檢查格式
         return jsonify({"ok": False, "msg": "temp required"}), 400
     if t > TARGET_TEMP:                          # 若高於閾值則開冷氣

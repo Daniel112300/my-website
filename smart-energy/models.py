@@ -5,10 +5,38 @@
 # ==========================================
 
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
 # 建立資料庫物件
 db = SQLAlchemy()
+
+# ==========================================
+# User 模型 (使用者資料表)
+# ==========================================
+class User(db.Model):
+    __tablename__ = 'users'
+    
+    user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    username = db.Column(db.String(50), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    email = db.Column(db.String(100), unique=True)
+    role = db.Column(db.Enum('admin', 'user'), default='user')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now)
+    
+    # 關聯：一個使用者有多個裝置
+    devices = db.relationship('Device', backref='owner', lazy=True)
+    
+    def set_password(self, password: str):
+        """設定密碼 (使用 scrypt 加密)"""
+        self.password_hash = generate_password_hash(password, method="scrypt")
+    
+    def check_password(self, password: str):
+        """檢查密碼"""
+        return check_password_hash(self.password_hash, password)
+    
+    def __repr__(self):
+        return f'<User {self.user_id}: {self.username}>'
 
 # ==========================================
 # Device 模型 (設備資料表)
@@ -17,15 +45,19 @@ class Device(db.Model):
     __tablename__ = 'devices'
     
     device_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
     device_name = db.Column(db.String(100), nullable=False)
-    device_type = db.Column(db.String(50), nullable=False)
+    device_type = db.Column(db.Enum('air_conditioner', 'light'), nullable=False)
     model_number = db.Column(db.String(50))
     location = db.Column(db.String(100))
     rated_power = db.Column(db.DECIMAL(6, 2))  # 額定功率(kW)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.TIMESTAMP, default=datetime.now)
     updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now)
+    
+    # 關聯
+    status = db.relationship('DeviceStatus', backref='device', uselist=False, lazy=True)
+    logs = db.relationship('PowerLog', backref='device', lazy=True)
     
     def to_dict(self):
         """將模型轉換為字典格式"""
@@ -45,13 +77,40 @@ class Device(db.Model):
         return f'<Device {self.device_id}: {self.device_name}>'
 
 # ==========================================
+# DeviceStatus 模型 (設備狀態表)
+# ==========================================
+class DeviceStatus(db.Model):
+    __tablename__ = 'device_status'
+    
+    status_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    device_id = db.Column(db.Integer, db.ForeignKey('devices.device_id'), unique=True, nullable=False)
+    is_on = db.Column(db.Boolean, default=False)
+    current_temperature = db.Column(db.DECIMAL(4, 2))
+    target_temperature = db.Column(db.DECIMAL(4, 2))
+    mode = db.Column(db.Enum('cool', 'heat', 'dry', 'auto'))
+    
+    def to_dict(self):
+        """將模型轉換為字典格式"""
+        return {
+            'status_id': self.status_id,
+            'device_id': self.device_id,
+            'is_on': self.is_on,
+            'current_temperature': float(self.current_temperature) if self.current_temperature else None,
+            'target_temperature': float(self.target_temperature) if self.target_temperature else None,
+            'mode': self.mode
+        }
+    
+    def __repr__(self):
+        return f'<DeviceStatus {self.status_id}: Device {self.device_id}>'
+
+# ==========================================
 # PowerLog 模型 (電力使用記錄表)
 # ==========================================
 class PowerLog(db.Model):
     __tablename__ = 'power_logs'
     
     log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    device_id = db.Column(db.Integer, nullable=False)
+    device_id = db.Column(db.Integer, db.ForeignKey('devices.device_id'), nullable=False)
     power_watts = db.Column(db.DECIMAL(8, 2))  # 功率(瓦)
     hours = db.Column(db.DECIMAL(6, 2))  # 使用時數
     log_date = db.Column(db.Date, nullable=False)
