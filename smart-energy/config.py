@@ -18,7 +18,7 @@ class Config:
     # - 遠端 MySQL: "mysql+pymysql://username:password@192.168.1.150/smart_home_db"
     
     # 預設使用 XAMPP 本地設定（空密碼）
-    DEFAULT_DB_URI = "mysql+pymysql://naiye130:0130wiwi@192.168.1.150/smart_home_db"
+    DEFAULT_DB_URI = "mysql+pymysql://root:@localhost/smart_home_db"
     
     # 如果環境變數有設定，優先使用環境變數
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or DEFAULT_DB_URI
