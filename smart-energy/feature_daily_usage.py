@@ -4,6 +4,38 @@
 # 使用台電累進費率制度
 # 使用資料庫儲存
 # ==========================================
+# API 端點：
+# - GET  /usage/daily    取得每日用電量統計
+#                       查詢參數: start_date (YYYY-MM-DD), end_date (YYYY-MM-DD)
+#                       預設查詢最近 7 天
+#                       回傳: 每日用電量、電費（加總/累進費率）、設備明細
+#
+# - GET  /usage/bill     計算總用電量與總電費（依月份分別計算）
+#                       回傳總用電量、總電費（加總/累進費率）、各月份統計
+#
+# - POST /usage/add     新增一筆用電紀錄
+#                       請求體: {
+#                         "device_id": int (必填),
+#                         "kwh": float (可選，直接提供度數),
+#                         "power_watts": float (可選，功率瓦數),
+#                         "hours": float (可選，使用時數),
+#                         "day": str (可選，日期 YYYY-MM-DD，預設今天)
+#                       }
+#                       必須提供 kwh 或 hours 其中一個
+#
+# - GET  /usage/monthly/<year>/<month>  取得指定月份的用電統計
+#                       回傳: 月總用電量、總電費、每日明細
+#
+# - GET  /usage/yearly/<year>           取得指定年份的用電統計
+#                       回傳: 年總用電量、總電費、每月明細
+#
+# - GET  /usage/compare                 比較兩個時間段的用電統計
+#                       查詢參數: period_type (day/month/year), date1, date2
+#                       回傳: 兩個時間段的統計與比較結果
+#
+# - POST /usage/batch                   批次新增多筆用電記錄
+#                       請求體: {"records": [...]} - 多筆記錄陣列
+# ==========================================
 
 from flask import Blueprint, jsonify, request
 from models import db, PowerLog

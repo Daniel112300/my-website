@@ -39,6 +39,16 @@ class User(db.Model):
         return f'<User {self.user_id}: {self.username}>'
 
 # ==========================================
+# Report 模型 (報表資料表)
+# ==========================================
+class Report(db.Model):
+    __tablename__ = 'reports'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    serial = db.Column(db.String(80), unique=True, nullable=False, index=True)
+    filename = db.Column(db.String(120), nullable=False, index=True)
+
+# ==========================================
 # Device 模型 (設備資料表)
 # ==========================================
 class Device(db.Model):
