@@ -16,6 +16,7 @@ from models import db                     # 匯入資料庫物件 (SQLAlchemy)
 from feature_device_control import bp as device_bp   # 功能1：電器開關與遠端控制
 from feature_daily_usage import bp as usage_bp       # 功能2：每日用電與電費統計
 from feature_temp_auto import bp as temp_bp          # 功能3：溫度判斷與自動開關
+from feature_simulator import bp as simulator_bp     # 功能4：資料模擬器
 
 
 # ------------------------------------------
@@ -32,6 +33,9 @@ def register_all_features(app: Flask):
 
     # 掛載 功能3：溫度自動判斷模組
     app.register_blueprint(temp_bp, url_prefix="/auto")
+    
+    # 掛載 功能4：資料模擬器模組
+    app.register_blueprint(simulator_bp, url_prefix="/simulate")
 
 
     # 備註：
