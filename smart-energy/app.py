@@ -23,6 +23,19 @@ def create_app():
 
     register_all_features(app)            # 呼叫 index.c 中的函式來註冊所有功能模組
 
+    # UI 路由：呈現剛建立的前端模板（與 API 分離）
+    @app.route('/ui/device')
+    def ui_device():
+        return render_template('device_control.html')
+
+    @app.route('/ui/usage')
+    def ui_usage():
+        return render_template('usage_daily.html')
+
+    @app.route('/ui/auto')
+    def ui_auto():
+        return render_template('auto_decide.html')
+
     @app.route("/")                       # 建立首頁路由
     def index():
         return render_template("index.html")  # 顯示首頁模板

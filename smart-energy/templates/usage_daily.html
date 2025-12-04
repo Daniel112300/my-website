@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}每日用電 - Smart Energy{% endblock %}
+
+{% block content %}
+<h2>每日用電統計</h2>
+
+<div>
+  <label>開始日期: <input type="date" id="start-date"></label>
+  <label style="margin-left:12px">結束日期: <input type="date" id="end-date"></label>
+  <button id="query-usage">查詢</button>
+  <span id="usage-msg" style="margin-left:12px;color:#555"></span>
+</div>
+
+<div id="usage-results">請按「查詢」以載入資料。</div>
+<div id="usage-raw" style="margin-top:14px"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // 預設最近7天
+  const endInput = document.getElementById('end-date');
+  const startInput = document.getElementById('start-date');
+  const today = new Date();
+  const endStr = today.toISOString().slice(0,10);
+  const start = new Date(today.getTime() - 6*24*3600*1000);
+  const startStr = start.toISOString().slice(0,10);
+  endInput.value = endStr;
+  startInput.value = startStr;
+
+  document.getElementById('query-usage').addEventListener('click', () => {
+    const s = startInput.value;
+    const e = endInput.value;
+    renderUsageDaily(s, e);
+  });
+
+  // initial
+  renderUsageDaily(startStr, endStr);
+</script>
+
+{% endblock %}
+
+{% block extra %}
+<!-- 新增用電紀錄表單 -->
+<div style="margin-top:18px;padding:10px;border:1px dashed #ddd">
+  <h3>新增用電紀錄</h3>
+  <label>設備 ID: <input id="new-usage-device" type="number" value="1" style="width:80px"></label>
+  <label style="margin-left:8px">kWh: <input id="new-usage-kwh" type="number" step="0.001"></label>
+  <label style="margin-left:8px">或 瓦數(W): <input id="new-usage-watts" type="number" style="width:80px"></label>
+  <label style="margin-left:8px">時數(h): <input id="new-usage-hours" type="number" style="width:60px"></label>
+  <label style="margin-left:8px">日期: <input id="new-usage-date" type="date" value="{{ ('' ) }}"></label>
+  <button id="btn-add-usage">新增紀錄</button>
+  <div id="add-usage-msg" style="margin-top:6px;color:#333"></div>
+</div>
+
+<script>
+  document.getElementById('btn-add-usage').addEventListener('click', async () => {
+    const device_id = parseInt(document.getElementById('new-usage-device').value);
+    const kwhVal = document.getElementById('new-usage-kwh').value;
+    const wattsVal = document.getElementById('new-usage-watts').value;
+    const hoursVal = document.getElementById('new-usage-hours').value;
+    const day = document.getElementById('new-usage-date').value || new Date().toISOString().slice(0,10);
+
+    const payload = { device_id };
+    if(kwhVal) payload.kwh = parseFloat(kwhVal);
+    if(wattsVal) payload.power_watts = parseFloat(wattsVal);
+    if(hoursVal) payload.hours = parseFloat(hoursVal);
+    if(day) payload.day = day;
+
+    const res = await addUsage(payload);
+    document.getElementById('add-usage-msg').textContent = JSON.stringify(res);
+    if(res && res.ok){
+      // 重新載入目前查詢範圍
+      const s = document.getElementById('start-date').value;
+      const e = document.getElementById('end-date').value;
+      renderUsageDaily(s, e);
+    }
+  });
+</script>
+
+{% endblock %}

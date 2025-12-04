@@ -182,7 +182,11 @@ def _get_logs_in_date_range(start_date, end_date):
     Returns:
         PowerLog 記錄列表
     """
-    return db.session.query(PowerLog).filter(
+    from sqlalchemy.orm import joinedload
+    
+    return db.session.query(PowerLog).options(
+        joinedload(PowerLog.device)
+    ).filter(
         PowerLog.log_date >= start_date,
         PowerLog.log_date <= end_date
     ).order_by(PowerLog.log_date, PowerLog.created_at).all()
@@ -297,6 +301,7 @@ def get_daily_usage():
         for log in data["logs"]:
             devices.append({
                 "device_id": log.device_id,
+                "device_name": log.device.device_name if log.device else f"Device {log.device_id}",
                 "kwh": round(_to_float(log.energy_consumed), 4),
                 "cost": round(_to_float(log.cost), 2)
             })
@@ -309,6 +314,39 @@ def get_daily_usage():
         }
     
     return jsonify(result)
+
+
+@bp.get("/logs")
+def get_power_logs():
+    """
+    取得指定日期範圍內的原始 power logs
+    查詢參數：start_date (YYYY-MM-DD), end_date (YYYY-MM-DD)
+    若未提供，預設最近 7 天
+    回傳：{"ok": True, "logs": [ {...}, ... ]}
+    """
+    try:
+        end_date_str = request.args.get('end_date')
+        start_date_str = request.args.get('start_date')
+
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+        else:
+            end_date = date.today()
+
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        else:
+            start_date = end_date - timedelta(days=6)
+
+        logs = db.session.query(PowerLog).filter(
+            PowerLog.log_date >= start_date,
+            PowerLog.log_date <= end_date
+        ).order_by(PowerLog.log_date, PowerLog.created_at).all()
+
+        logs_list = [l.to_dict() for l in logs]
+        return jsonify({"ok": True, "logs": logs_list})
+    except Exception as e:
+        return jsonify({"ok": False, "msg": str(e)}), 500
 
 
 @bp.get("/bill")

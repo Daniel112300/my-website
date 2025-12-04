@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}自動控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<h2>自動控制 / 溫度判斷</h2>
+
+<!-- 手動判斷與即時檢查/監控已移除，僅保留設定與自動控制介面 -->
+
+<section style="margin-top:16px">
+  <h3>設定</h3>
+  <div style="margin-bottom:8px">
+    當前溫度 (°C)：<input type="number" id="cfg-simulated" step="0.1" style="width:100px"> <button id="btn-set-sim">設定模擬溫度</button>
+  </div>
+
+  <div style="margin-bottom:8px">
+    目標溫度 (°C)：<input type="number" id="cfg-target" step="0.5" style="width:100px">（預設值）
+  </div>
+
+  <div style="margin-bottom:8px">
+    監控間隔(min)：<input type="number" id="cfg-interval" style="width:80px">（預設 30）
+  </div>
+
+  <div style="margin-bottom:10px">
+    自動控制：<span id="auto-status">-</span> <button id="btn-auto-toggle">切換自動控制</button>
+  </div>
+
+  <button id="btn-update-config">更新設定</button>
+  <div id="cfg-msg" style="margin-top:8px"></div>
+</section>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // 頁面載入時自動讀取設定
+  async function initConfig(){
+    const res = await getAutoConfig();
+    if(res){
+      if(res.target_temp!==undefined) document.getElementById('cfg-target').value = res.target_temp;
+      if(res.monitor_interval!==undefined) document.getElementById('cfg-interval').value = Math.floor(res.monitor_interval/60);
+      if(res.simulated_temp!==undefined) document.getElementById('cfg-simulated').value = (res.simulated_temp===null? '': res.simulated_temp);
+      if(res.monitor_enabled!==undefined){
+        document.getElementById('auto-status').textContent = res.monitor_enabled? 'ON' : 'OFF';
+        document.getElementById('btn-auto-toggle').textContent = res.monitor_enabled? '停止自動控制' : '啟動自動控制';
+      }
+    }
+  }
+  
+  // 在頁面載入完成後自動初始化設定
+  window.addEventListener('load', initConfig);
+
+  document.getElementById('btn-decide').addEventListener('click', async () => {
+    const t = parseFloat(document.getElementById('manual-temp').value);
+    const res = await decideTemp(t);
+    document.getElementById('decide-result').textContent = JSON.stringify(res);
+  });
+
+  document.getElementById('btn-set-sim').addEventListener('click', async () => {
+    const v = document.getElementById('cfg-simulated').value;
+    const val = v === '' ? null : parseFloat(v);
+    const res = await updateAutoConfig({simulated_temp: val});
+    document.getElementById('cfg-msg').textContent = res && res.ok? '模擬溫度已設定' : ('設定失敗: ' + JSON.stringify(res));
+  });
+
+  document.getElementById('btn-check').addEventListener('click', async () => {
+    const res = await checkAuto();
+    document.getElementById('monitor-status').textContent = JSON.stringify(res);
+  });
+
+  document.getElementById('btn-monitor-start').addEventListener('click', async () => {
+    // start monitor using current cfg interval (minutes -> seconds)
+    const minutes = parseInt(document.getElementById('cfg-interval').value) || 30;
+    const res = await startMonitor(minutes*60);
+    document.getElementById('monitor-status').textContent = JSON.stringify(res);
+    // refresh auto status
+    await initConfig();
+    // reflect into device control page
+    if(window.renderDeviceList) window.renderDeviceList();
+  });
+
+  document.getElementById('btn-monitor-stop').addEventListener('click', async () => {
+    const res = await stopMonitor();
+    document.getElementById('monitor-status').textContent = JSON.stringify(res);
+    await initConfig();
+    if(window.renderDeviceList) window.renderDeviceList();
+  });
+
+  document.getElementById('btn-monitor-status').addEventListener('click', async () => {
+    const res = await monitorStatus();
+    document.getElementById('monitor-status').textContent = JSON.stringify(res);
+  });
+
+  document.getElementById('btn-update-config').addEventListener('click', async () => {
+    const target = parseFloat(document.getElementById('cfg-target').value);
+    const intervalMin = parseInt(document.getElementById('cfg-interval').value) || 30;
+    const intervalSec = intervalMin * 60;
+    const res = await updateAutoConfig({target_temp: target, interval: intervalSec});
+    document.getElementById('cfg-msg').textContent = JSON.stringify(res);
+    // refresh status
+    await initConfig();
+    if(window.renderDeviceList) window.renderDeviceList();
+  });
+
+  document.getElementById('btn-auto-toggle').addEventListener('click', async () => {
+    const status = document.getElementById('auto-status').textContent === 'ON';
+    if(status){
+      // currently ON -> stop
+      const res = await stopMonitor();
+      document.getElementById('cfg-msg').textContent = JSON.stringify(res);
+    } else {
+      const minutes = parseInt(document.getElementById('cfg-interval').value) || 30;
+      const res = await startMonitor(minutes*60);
+      document.getElementById('cfg-msg').textContent = JSON.stringify(res);
+    }
+    await initConfig();
+    if(window.renderDeviceList) window.renderDeviceList();
+  });
+</script>
+
+{% endblock %}

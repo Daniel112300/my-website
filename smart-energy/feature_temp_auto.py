@@ -14,8 +14,9 @@ bp = Blueprint("auto", __name__, template_folder="templates")
 
 TARGET_TEMP = 26.0                               # 設定溫度閾值
 AUTO_MONITOR_ENABLED = False                     # 自動監控開關
-MONITOR_INTERVAL = 180                           # 監控間隔（秒），預設 3 分鐘
+MONITOR_INTERVAL = 1800                          # 監控間隔（秒），預設 30 分鐘
 MONITOR_THREAD = None                            # 監控執行緒
+SIMULATED_TEMP = None                             # 可由前端設定的模擬目前溫度（以 °C 為單位）
 
 # ==========================================
 # 核心邏輯：從資料庫讀取溫度並判斷
@@ -29,6 +30,14 @@ def get_latest_temperature():
     Returns:
         float or None: 目前室內溫度
     """
+    # 如果前端有設定模擬溫度，先使用模擬溫度
+    try:
+        global SIMULATED_TEMP
+        if SIMULATED_TEMP is not None:
+            return float(SIMULATED_TEMP)
+    except Exception as e:
+        print(f"Error reading SIMULATED_TEMP: {e}")
+
     try:
         # 方法 1: 從 environment_logs 表讀取（如果有建立）
         from models import EnvironmentLog
@@ -300,7 +309,8 @@ def config():
             "ok": True,
             "target_temp": TARGET_TEMP,
             "monitor_interval": MONITOR_INTERVAL,
-            "monitor_enabled": AUTO_MONITOR_ENABLED
+            "monitor_enabled": AUTO_MONITOR_ENABLED,
+            "simulated_temp": SIMULATED_TEMP
         })
     
     # POST: 修改設定
@@ -311,6 +321,13 @@ def config():
     
     if "interval" in data:
         MONITOR_INTERVAL = int(data["interval"])
+    
+    # 接受模擬溫度設定（以 Celsius）
+    if "simulated_temp" in data:
+        try:
+            SIMULATED_TEMP = float(data["simulated_temp"]) if data["simulated_temp"] is not None else None
+        except Exception:
+            SIMULATED_TEMP = None
     
     return jsonify({
         "ok": True,
