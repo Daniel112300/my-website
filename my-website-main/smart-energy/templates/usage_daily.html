@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+
+{% block title %}每日用電 - Smart Energy{% endblock %}
+
+{% block content %}
+<h2>每日用電統計</h2>
+
+<div>
+  <label>開始日期: <input type="date" id="start-date"></label>
+  <label style="margin-left:12px">結束日期: <input type="date" id="end-date"></label>
+  <button id="query-usage" style="padding: 4px 12px; cursor: pointer;">查詢</button>
+</div>
+
+<!-- 顯示結果的區域 -->
+<div id="usage-results" style="margin-top: 15px;">載入中...</div>
+
+<!-- 引用加上版本號的 JS -->
+<script src="{{ url_for('static', filename='js/app.js') }}?v=3"></script>
+<script>
+  // --- 修改重點：設定預設日期範圍為有資料的 11 月 ---
+  const startInput = document.getElementById('start-date');
+  const endInput = document.getElementById('end-date');
+
+  // 設定預設值 (對應你的資料庫數據範圍)
+  startInput.value = "2025-11-20";
+  endInput.value = "2025-11-29"; // 你的資料庫目前最後一筆是 29 號
+
+  // 綁定按鈕事件
+  document.getElementById('query-usage').addEventListener('click', () => {
+    const s = startInput.value;
+    const e = endInput.value;
+    if(s && e) {
+        renderUsageDaily(s, e);
+    } else {
+        alert("請選擇完整的日期範圍");
+    }
+  });
+
+  // 頁面載入後，自動執行一次查詢
+  // 使用 setTimeout 確保 app.js 已完全載入
+  setTimeout(() => {
+      renderUsageDaily(startInput.value, endInput.value);
+  }, 100);
+</script>
+
+{% endblock %}
+
+{% block extra %}
+<!-- 新增用電紀錄表單 -->
+<div style="margin-top:18px;padding:15px;border:1px dashed #ccc; background-color: #f9f9f9;">
+  <h3>🛠️ 手動新增用電紀錄</h3>
+  <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+      <label>設備 ID: <input id="new-usage-device" type="number" value="1" style="width:60px"></label>
+      <label>kWh: <input id="new-usage-kwh" type="number" step="0.1" style="width:80px" placeholder="度數"></label>
+      <span style="color:#888">或</span>
+      <label>瓦數(W): <input id="new-usage-watts" type="number" style="width:80px" placeholder="W"></label>
+      <label>時數(h): <input id="new-usage-hours" type="number" style="width:60px" placeholder="小時"></label>
+  </div>
+  <div style="margin-top: 10px;">
+      <label>日期: <input id="new-usage-date" type="date"></label>
+      <button id="btn-add-usage" style="margin-left: 10px; background-color: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">新增紀錄</button>
+  </div>
+  <div id="add-usage-msg" style="margin-top:8px; font-weight: bold;"></div>
+</div>
+
+<script>
+  // 預設新增日為今天
+  document.getElementById('new-usage-date').value = new Date().toISOString().slice(0,10);
+
+  document.getElementById('btn-add-usage').addEventListener('click', async () => {
+    const device_id = parseInt(document.getElementById('new-usage-device').value);
+    const kwhVal = document.getElementById('new-usage-kwh').value;
+    const wattsVal = document.getElementById('new-usage-watts').value;
+    const hoursVal = document.getElementById('new-usage-hours').value;
+    const day = document.getElementById('new-usage-date').value;
+
+    const payload = { device_id };
+    if(kwhVal) payload.kwh = parseFloat(kwhVal);
+    if(wattsVal) payload.power_watts = parseFloat(wattsVal);
+    if(hoursVal) payload.hours = parseFloat(hoursVal);
+    if(day) payload.day = day;
+
+    const res = await addUsage(payload);
+    
+    const msgEl = document.getElementById('add-usage-msg');
+    if(res && res.ok){
+      msgEl.style.color = 'green';
+      msgEl.textContent = '新增成功！';
+      
+      // 如果新增的日期在目前查詢範圍內，就重新整理
+      const s = document.getElementById('start-date').value;
+      const e = document.getElementById('end-date').value;
+      if (day >= s && day <= e) {
+          renderUsageDaily(s, e);
+      }
+    } else {
+      msgEl.style.color = 'red';
+      msgEl.textContent = '失敗: ' + (res.msg || '未知錯誤');
+    }
+  });
+</script>
+
+{% endblock %}

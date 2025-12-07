@@ -1,0 +1,76 @@
+<!-- base.html -->
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart Energy{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <style>
+    /* 簡單的登出按鈕樣式 */
+    .user-info {
+        float: right;
+        margin-top: -35px; /* 調整位置 */
+        color: white;
+        font-size: 0.9rem;
+    }
+    .user-info a {
+        /* 修改：顏色改深一點 (Coral Red) */
+        color: #ff6b6b;
+        text-decoration: none;
+        margin-left: 10px;
+        border: 1px solid #ff6b6b;
+        padding: 2px 8px;
+        border-radius: 4px;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+    .user-info a:hover {
+        background: #ff6b6b;
+        color: white; /* Hover 時變白字紅底 */
+    }
+  </style>
+</head>
+
+<body>
+  <header class="site-header">
+    <h1>Smart Energy 智慧能源系統</h1>
+    
+    <!-- 登入資訊區塊 -->
+    {% if current_user.is_authenticated %}
+    <div class="user-info">
+        嗨，{{ current_user.username }}
+        <a href="{{ url_for('auth.logout') }}">登出</a>
+    </div>
+    {% endif %}
+
+    <nav>
+      <a href="{{ url_for('index') }}">首頁</a>
+      <a href="/ui/device">電器控制</a>
+      <a href="/ui/usage">用電統計</a>
+      <a href="/ui/auto">自動控制</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash">
+          {% for cat, msg in messages %}
+            <!-- 將 error 類別轉為 danger 以配合某些 CSS -->
+            <li class="flash-{{ 'danger' if cat == 'error' else cat }}">{{ msg }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <small>© 2025 Smart Energy System</small>
+  </footer>
+  
+  {% block extra %}{% endblock %}
+</body>
+</html>
