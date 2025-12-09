@@ -1,0 +1,377 @@
+{# templates/auto_control.html #}
+{% extends 'base.html' %}
+
+{% block title %}自動控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h2>自動控制 / 溫度判斷</h2>
+    <p class="page-subtitle">設定目標溫度與監控間隔，系統會自動幫你控制設備。</p>
+  </div>
+
+  <section class="card">
+    <h3 class="card-title">自動控制設定</h3>
+
+    <div class="form-grid">
+      <!-- 模擬當前溫度 -->
+      <div class="form-row">
+        <label for="cfg-simulated" class="form-label">當前溫度 (°C)</label>
+        <div class="field-with-action">
+          <input
+            type="number"
+            id="cfg-simulated"
+            step="0.1"
+            class="input"
+            placeholder="例如：26.5"
+          >
+          <button id="btn-set-sim" class="btn btn-primary">設定模擬溫度</button>
+        </div>
+        <small class="form-hint">
+          可視為感測器回報的目前室溫，用來測試自動控制邏輯。
+        </small>
+      </div>
+
+      <!-- 目標溫度 -->
+      <div class="form-row">
+        <label for="cfg-target" class="form-label">目標溫度 (°C)</label>
+        <input
+          type="number"
+          id="cfg-target"
+          step="0.5"
+          class="input"
+          placeholder="預設值"
+        >
+        <small class="form-hint">
+          當室溫高於／低於這個數值時，系統會決定是否啟動設備。
+        </small>
+      </div>
+
+      <!-- 監控間隔 -->
+      <div class="form-row">
+        <label for="cfg-interval" class="form-label">監控間隔（分鐘）</label>
+        <input
+          type="number"
+          id="cfg-interval"
+          class="input input-sm"
+          placeholder="預設 30"
+        >
+        <small class="form-hint">
+          例如 30 代表每 30 分鐘檢查一次溫度並做出控制決策。
+        </small>
+      </div>
+
+      <!-- 自動控制開關 -->
+      <div class="form-row form-row-inline">
+        <span class="form-label">自動控制狀態</span>
+        <span id="auto-status" class="status-pill status-neutral">-</span>
+        <button id="btn-auto-toggle" class="btn btn-secondary">切換自動控制</button>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button id="btn-update-config" class="btn btn-main">儲存 / 更新設定</button>
+      <div id="cfg-msg" class="cfg-message"></div>
+    </div>
+  </section>
+</div>
+
+<!-- 共用 JS（裡面要有 getAutoConfig / updateAutoConfig / startMonitor / stopMonitor 等函式） -->
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+<script>
+  // 讀取後端目前設定
+  async function initConfig() {
+    try {
+      const res = await getAutoConfig();
+      if (!res) return;
+
+      // 目標溫度
+      if (res.target_temp !== undefined) {
+        document.getElementById('cfg-target').value = res.target_temp;
+      }
+
+      // 監控間隔：秒 -> 分鐘
+      if (res.monitor_interval !== undefined) {
+        document.getElementById('cfg-interval').value =
+          Math.floor(res.monitor_interval / 60);
+      }
+
+      // 模擬溫度
+      if (res.simulated_temp !== undefined) {
+        document.getElementById('cfg-simulated').value =
+          res.simulated_temp === null ? '' : res.simulated_temp;
+      }
+
+      // 自動控制狀態
+      if (res.monitor_enabled !== undefined) {
+        const statusEl = document.getElementById('auto-status');
+        statusEl.textContent = res.monitor_enabled ? 'ON' : 'OFF';
+        statusEl.className = 'status-pill ' +
+          (res.monitor_enabled ? 'status-on' : 'status-off');
+
+        document.getElementById('btn-auto-toggle').textContent =
+          res.monitor_enabled ? '停止自動控制' : '啟動自動控制';
+      }
+    } catch (e) {
+      console.error(e);
+      document.getElementById('cfg-msg').textContent = '讀取設定失敗';
+    }
+  }
+
+  // 頁面載入完成後自動初始化
+  window.addEventListener('load', initConfig);
+
+  // 設定模擬溫度
+  document.getElementById('btn-set-sim').addEventListener('click', async () => {
+    const v = document.getElementById('cfg-simulated').value;
+    const val = v === '' ? null : parseFloat(v);
+
+    try {
+      const res = await updateAutoConfig({ simulated_temp: val });
+      document.getElementById('cfg-msg').textContent =
+        res && res.ok ? '模擬溫度已設定' : '設定失敗：' + JSON.stringify(res);
+    } catch (e) {
+      console.error(e);
+      document.getElementById('cfg-msg').textContent = '設定失敗';
+    }
+  });
+
+  // 更新目標溫度與監控間隔
+  document.getElementById('btn-update-config').addEventListener('click', async () => {
+    const target = parseFloat(document.getElementById('cfg-target').value);
+    const intervalMin = parseInt(document.getElementById('cfg-interval').value) || 30;
+    const intervalSec = intervalMin * 60;
+
+    try {
+      const res = await updateAutoConfig({
+        target_temp: target,
+        interval: intervalSec
+      });
+
+      document.getElementById('cfg-msg').textContent =
+        '設定已更新：' + JSON.stringify(res);
+
+      await initConfig();
+      if (window.renderDeviceList) window.renderDeviceList();
+    } catch (e) {
+      console.error(e);
+      document.getElementById('cfg-msg').textContent = '更新設定失敗';
+    }
+  });
+
+  // 切換自動控制 ON / OFF
+  document.getElementById('btn-auto-toggle').addEventListener('click', async () => {
+    const isOn = document.getElementById('auto-status').textContent === 'ON';
+
+    try {
+      let res;
+      if (isOn) {
+        // 目前是 ON -> 停止
+        res = await stopMonitor();
+        document.getElementById('cfg-msg').textContent =
+          '已停止自動控制：' + JSON.stringify(res);
+      } else {
+        // 目前是 OFF -> 啟動
+        const minutes = parseInt(document.getElementById('cfg-interval').value) || 30;
+        res = await startMonitor(minutes * 60);
+        document.getElementById('cfg-msg').textContent =
+          '已啟動自動控制：' + JSON.stringify(res);
+      }
+
+      await initConfig();
+      if (window.renderDeviceList) window.renderDeviceList();
+    } catch (e) {
+      console.error(e);
+      document.getElementById('cfg-msg').textContent = '切換失敗';
+    }
+  });
+</script>
+{% endblock %}
+
+
+/* ===== 自動控制頁面共用樣式 ===== */
+
+/* 版面容器 */
+.page-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 20px 24px;
+}
+
+.page-header {
+  margin-bottom: 12px;
+}
+
+.page-header h2 {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* 卡片 */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.05);
+  border: 1px solid #eee;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  margin-bottom: 12px;
+}
+
+/* 表單排版 */
+.form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-row-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.form-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.input {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #d0d0d0;
+  font-size: 0.95rem;
+  max-width: 200px;
+}
+
+.input-sm {
+  max-width: 120px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #2f80ed;
+  box-shadow: 0 0 0 2px rgba(47,128,237,0.15);
+}
+
+/* 有按鈕的欄位 */
+.field-with-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.form-hint {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+/* 按鈕樣式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    transform 0.05s ease,
+    box-shadow 0.1s ease,
+    background-color 0.1s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.btn-primary {
+  background: #2f80ed;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(47,128,237,0.35);
+}
+
+.btn-primary:hover {
+  background: #2366be;
+}
+
+.btn-secondary {
+  background: #f4f4f4;
+  color: #333;
+  border-color: #ddd;
+}
+
+.btn-secondary:hover {
+  background: #e8e8e8;
+}
+
+.btn-main {
+  background: #00b894;
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0,184,148,0.3);
+}
+
+.btn-main:hover {
+  background: #009474;
+}
+
+/* 狀態膠囊 */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status-neutral {
+  background: #f1f1f1;
+  color: #666;
+}
+
+.status-on {
+  background: #e3f9e6;
+  color: #0e8a3b;
+}
+
+.status-off {
+  background: #ffecec;
+  color: #c0392b;
+}
+
+/* 底部訊息區 */
+.form-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.cfg-message {
+  font-size: 0.85rem;
+  color: #555;
+  word-break: break-all;
+}

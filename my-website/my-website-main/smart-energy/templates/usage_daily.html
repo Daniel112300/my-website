@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+
+{% block title %}每日用電 - Smart Energy{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <!-- 標題 -->
+  <div class="page-header">
+    <h2>每日用電統計</h2>
+    <p class="page-subtitle">
+      選擇日期範圍查看每日用電與電費估算，並可手動新增紀錄作為測試資料。
+    </p>
+  </div>
+
+  <!-- 查詢卡片 -->
+  <section class="card">
+    <div class="section-header">
+      <h3 class="card-title">每日用電查詢</h3>
+      <p class="section-subtitle">預設顯示最近 7 天的用電情況。</p>
+    </div>
+
+    <div class="usage-filter-row">
+      <label for="start-date" class="form-label">
+        開始日期
+        <input type="date" id="start-date" class="input input-date">
+      </label>
+
+      <label for="end-date" class="form-label">
+        結束日期
+        <input type="date" id="end-date" class="input input-date">
+      </label>
+
+      <button id="query-usage" class="btn btn-primary">查詢</button>
+
+      <span id="usage-msg" class="usage-msg"></span>
+    </div>
+
+    <div id="usage-results" class="usage-results">
+      請按「查詢」以載入資料。
+    </div>
+
+    <div id="usage-raw" class="usage-raw"></div>
+  </section>
+
+  <!-- 新增用電紀錄卡片 -->
+  <section class="card">
+    <div class="section-header">
+      <h3 class="card-title">新增用電紀錄（測試資料）</h3>
+      <p class="section-subtitle">
+        可手動新增某日某設備的用電量，方便測試圖表與計算。
+      </p>
+    </div>
+
+    <div class="form-grid form-grid-2col">
+      <div class="form-row">
+        <label for="new-usage-device" class="form-label">設備 ID</label>
+        <input
+          id="new-usage-device"
+          type="number"
+          value="1"
+          class="input input-sm"
+        >
+        <small class="form-hint">對應電器控制頁中的設備 ID。</small>
+      </div>
+
+      <div class="form-row">
+        <label for="new-usage-kwh" class="form-label">用電量 (kWh)</label>
+        <input
+          id="new-usage-kwh"
+          type="number"
+          step="0.001"
+          class="input input-sm"
+        >
+        <small class="form-hint">可直接填入 kWh，或改用瓦數＋時數換算。</small>
+      </div>
+
+      <div class="form-row">
+        <label for="new-usage-watts" class="form-label">瓦數 (W)</label>
+        <input
+          id="new-usage-watts"
+          type="number"
+          class="input input-sm"
+        >
+        <small class="form-hint">例如 1200 W × 2 小時 ≒ 2.4 kWh。</small>
+      </div>
+
+      <div class="form-row">
+        <label for="new-usage-hours" class="form-label">時數 (h)</label>
+        <input
+          id="new-usage-hours"
+          type="number"
+          class="input input-sm"
+        >
+      </div>
+
+      <div class="form-row">
+        <label for="new-usage-date" class="form-label">日期</label>
+        <input
+          id="new-usage-date"
+          type="date"
+          class="input input-date"
+        >
+        <small class="form-hint">未填寫則自動使用今天日期。</small>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button id="btn-add-usage" class="btn btn-main">新增紀錄</button>
+      <div id="add-usage-msg" class="cfg-message"></div>
+    </div>
+  </section>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // ===== 查詢邏輯：預設最近 7 天 =====
+  const endInput = document.getElementById('end-date');
+  const startInput = document.getElementById('start-date');
+
+  const today = new Date();
+  const endStr = today.toISOString().slice(0, 10);
+  const start = new Date(today.getTime() - 6 * 24 * 3600 * 1000);
+  const startStr = start.toISOString().slice(0, 10);
+
+  endInput.value = endStr;
+  startInput.value = startStr;
+
+  document.getElementById('query-usage').addEventListener('click', () => {
+    const s = startInput.value;
+    const e = endInput.value;
+    renderUsageDaily(s, e);  // 你的 app.js 內的函式
+  });
+
+  // 頁面載入時先查一次最近 7 天
+  renderUsageDaily(startStr, endStr);
+
+  // ===== 新增用電紀錄 =====
+  document.getElementById('btn-add-usage').addEventListener('click', async () => {
+    const device_id = parseInt(document.getElementById('new-usage-device').value);
+    const kwhVal = document.getElementById('new-usage-kwh').value;
+    const wattsVal = document.getElementById('new-usage-watts').value;
+    const hoursVal = document.getElementById('new-usage-hours').value;
+    const day =
+      document.getElementById('new-usage-date').value ||
+      new Date().toISOString().slice(0, 10);
+
+    const payload = { device_id };
+    if (kwhVal) payload.kwh = parseFloat(kwhVal);
+    if (wattsVal) payload.power_watts = parseFloat(wattsVal);
+    if (hoursVal) payload.hours = parseFloat(hoursVal);
+    if (day) payload.day = day;
+
+    const msgEl = document.getElementById('add-usage-msg');
+    msgEl.className = 'cfg-message';
+
+    try {
+      const res = await addUsage(payload); // 也是在 app.js 裡的 API
+
+      msgEl.textContent = JSON.stringify(res);
+
+      if (res && res.ok) {
+        msgEl.classList.add('msg-success');
+
+        // 重新載入目前查詢範圍
+        const s = document.getElementById('start-date').value;
+        const e = document.getElementById('end-date').value;
+        renderUsageDaily(s, e);
+      } else {
+        msgEl.classList.add('msg-error');
+      }
+    } catch (e) {
+      console.error(e);
+      msgEl.classList.add('msg-error');
+      msgEl.textContent = '新增失敗：發生例外錯誤';
+    }
+  });
+</script>
+{% endblock %}
+
+/* ===== 每日用電頁專用樣式 ===== */
+
+.usage-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.usage-filter-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-date {
+  max-width: 170px;
+}
+
+.usage-msg {
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.usage-results {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+/* 顯示原始 JSON / 表格資料用 */
+.usage-raw {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  color: #666;
+  background: #fafafa;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  padding: 8px 10px;
+  font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

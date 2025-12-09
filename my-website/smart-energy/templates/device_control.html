@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+
+{% block title %}電器控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<h2>電器控制</h2>
+
+<div id="device-actions">
+  <span id="device-msg" style="margin-left:12px;color:#555"></span>
+</div>
+
+<!-- Delete confirmation modal -->
+<div id="delete-modal" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:2000;align-items:center;justify-content:center;display:none">
+  <div style="background:#fff;padding:18px;border-radius:8px;max-width:420px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.2)">
+      <div class="delete-modal-label" style="margin-bottom:12px;font-weight:600">確定要刪除？</div>
+      <div style="text-align:right">
+        <button onclick="hideDeleteModal()" style="margin-right:8px">取消</button>
+        <button onclick="confirmDelete()" style="background:#c00;color:#fff;border:none;padding:6px 10px;border-radius:4px">確定刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 新增設備表單 (放在設備清單上方) -->
+<div style="margin-top:18px;padding:10px;border:1px dashed #ddd">
+  <h3>新增設備</h3>
+  <label>名稱: <input id="new-device-name"></label>
+  <label style="margin-left:8px">類型: <select id="new-device-type"><option value="air_conditioner">air_conditioner</option><option value="light">light</option></select></label>
+  <label style="margin-left:8px">型號: <input id="new-device-model"></label>
+  <label style="margin-left:8px">位置: <input id="new-device-location"></label>
+  <label style="margin-left:8px">額定功率(kW): <input id="new-device-rated" type="number" step="0.01"></label>
+  <label style="margin-left:8px">user_id: <input id="new-device-user" type="number" value="1" style="width:60px"></label>
+  <button id="btn-add-device">新增設備</button>
+  <div id="add-device-msg" style="margin-top:6px;color:#333"></div>
+</div>
+
+<div id="device-list">載入中...</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // initial render
+  renderDeviceList();
+
+  document.getElementById('btn-add-device').addEventListener('click', async () => {
+    const name = document.getElementById('new-device-name').value.trim();
+    const device_type = document.getElementById('new-device-type').value;
+    const model_number = document.getElementById('new-device-model').value.trim() || null;
+    const location = document.getElementById('new-device-location').value.trim() || null;
+    const rated_power = parseFloat(document.getElementById('new-device-rated').value) || null;
+    const user_id = parseInt(document.getElementById('new-device-user').value) || 1;
+
+    const payload = {
+      device_name: name,
+      device_type,
+      model_number,
+      location,
+      rated_power,
+      user_id
+    };
+
+    const res = await addDevice(payload);
+    const msgEl = document.getElementById('add-device-msg');
+    if(res && res.ok){
+      const dev = res.device || {};
+      msgEl.style.color = 'green';
+      msgEl.textContent = `新增成功：${dev.device_name || name} (ID: ${dev.device_id || '—'})`;
+      // 清空欄位並重新整理列表
+      document.getElementById('new-device-name').value = '';
+      document.getElementById('new-device-model').value = '';
+      document.getElementById('new-device-location').value = '';
+      document.getElementById('new-device-rated').value = '';
+      await renderDeviceList();
+    } else {
+      msgEl.style.color = 'red';
+      const err = res && res.msg ? res.msg : JSON.stringify(res);
+      msgEl.textContent = `新增失敗：${err}`;
+    }
+  });
+</script>
+
+{% endblock %}
+
+{% block extra %}
+<!-- 新增設備表單 -->
+<div style="margin-top:18px;padding:10px;border:1px dashed #ddd">
+  <h3>新增設備</h3>
+  <label>名稱: <input id="new-device-name"></label>
+  <label style="margin-left:8px">類型: <select id="new-device-type"><option value="air_conditioner">air_conditioner</option><option value="light">light</option></select></label>
+  <label style="margin-left:8px">型號: <input id="new-device-model"></label>
+  <label style="margin-left:8px">位置: <input id="new-device-location"></label>
+  <label style="margin-left:8px">額定功率(kW): <input id="new-device-rated" type="number" step="0.01"></label>
+  <label style="margin-left:8px">user_id: <input id="new-device-user" type="number" value="1" style="width:60px"></label>
+  <button id="btn-add-device">新增設備</button>
+  <div id="add-device-msg" style="margin-top:6px;color:#333"></div>
+</div>
+
+<script>
+  document.getElementById('btn-add-device').addEventListener('click', async () => {
+    const name = document.getElementById('new-device-name').value.trim();
+    const device_type = document.getElementById('new-device-type').value;
+    const model_number = document.getElementById('new-device-model').value.trim() || null;
+    const location = document.getElementById('new-device-location').value.trim() || null;
+    const rated_power = parseFloat(document.getElementById('new-device-rated').value) || null;
+    const user_id = parseInt(document.getElementById('new-device-user').value) || 1;
+
+    const payload = {
+      device_name: name,
+      device_type,
+      model_number,
+      location,
+      rated_power,
+      user_id
+    };
+
+    const res = await addDevice(payload);
+    document.getElementById('add-device-msg').textContent = JSON.stringify(res);
+    if(res && res.ok){
+      // 清空欄位並重新整理列表
+      document.getElementById('new-device-name').value = '';
+      await renderDeviceList();
+    }
+  });
+</script>
+
+{% endblock %}

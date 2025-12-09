@@ -1,0 +1,142 @@
+{# index.html #}
+{% extends "base.html" %}
+
+{% block title %}首頁 - Smart Energy{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <!-- 首頁標題 -->
+  <div class="page-header">
+    <h2>智慧家庭用電總覽</h2>
+    <p class="page-subtitle">
+      從這裡快速進入電器控制、用電統計與自動控制三大功能。
+    </p>
+  </div>
+
+  <!-- 系統簡介 -->
+  <section class="card home-intro-card">
+    <p>
+      本系統示範如何整合
+      <strong>裝置管理</strong>、
+      <strong>用電分析</strong> 與
+      <strong>溫度自動控制</strong>，
+      讓你在一個畫面裡就能掌握家庭用電狀況，並遠端控制電器。
+    </p>
+  </section>
+
+  <!-- 三大功能卡片 -->
+  <section class="feature-grid">
+    <!-- 功能1：電器控制 -->
+    <a href="/ui/device" class="feature-card card">
+      <div class="feature-icon">🎛️</div>
+      <h3 class="feature-title">電器開關狀態與遠端控制</h3>
+      <p class="feature-desc">
+        查看目前家中電器是否開啟，並透過網頁遠端控制開關。
+      </p>
+      <span class="feature-link">前往電器控制頁面 →</span>
+    </a>
+
+    <!-- 功能2：用電統計 -->
+    <a href="/ui/usage" class="feature-card card">
+      <div class="feature-icon">📊</div>
+      <h3 class="feature-title">每日用電與電費統計</h3>
+      <p class="feature-desc">
+        以圖表或數字呈現每日用電量與電費估算，幫助你掌握用電習慣。
+      </p>
+      <span class="feature-link">查看用電統計 →</span>
+    </a>
+
+    <!-- 功能3：自動控制 -->
+    <a href="/ui/auto" class="feature-card card">
+      <div class="feature-icon">🌡️</div>
+      <h3 class="feature-title">溫度判斷與自動控制</h3>
+      <p class="feature-desc">
+        設定目標溫度與監控間隔，系統會自動開關冷氣等設備。
+      </p>
+      <span class="feature-link">設定自動控制 →</span>
+    </a>
+  </section>
+</div>
+{% endblock %}
+
+/* ===== 首頁專用樣式：功能卡片排列 ===== */
+
+.home-intro-card {
+  margin-bottom: 16px;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+/* 三個功能卡片的排版 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 8px;
+}
+
+/* 手機或小螢幕：改成 1 欄或 2 欄 */
+@media (max-width: 960px) {
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 功能卡片本體 */
+.feature-card {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 16px 14px;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+
+/* 使用既有的 .card 外觀，再加上 hover 效果 */
+.feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+  background-color: #fdfefe;
+}
+
+/* 卡片內的小圖示 */
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5ff;
+  font-size: 1.4rem;
+}
+
+/* 標題與內文 */
+.feature-title {
+  font-size: 1rem;
+  margin: 6px 0 0;
+}
+
+.feature-desc {
+  font-size: 0.9rem;
+  color: #555;
+  margin: 2px 0 0;
+  flex: 1;
+}
+
+/* 卡片底部的「連結文字」 */
+.feature-link {
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: #2f80ed;
+}
