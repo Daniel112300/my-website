@@ -1,0 +1,332 @@
+{# templates/device_control.html 之類的檔名 #}
+{% extends 'base.html' %}
+
+{% block title %}電器控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <!-- 標題與說明 -->
+  <div class="page-header">
+    <h2>電器控制</h2>
+    <p class="page-subtitle">
+      查看目前家中電器狀態，並新增、刪除或控制設備。
+    </p>
+  </div>
+
+  <!-- 操作訊息列 -->
+  <section class="card card-toolbar">
+    <div class="toolbar-left">
+      <span class="toolbar-label">操作狀態</span>
+      <span id="device-msg" class="toolbar-msg"></span>
+    </div>
+  </section>
+
+  <!-- 新增設備 -->
+  <section class="card">
+    <div class="section-header">
+      <h3 class="card-title">新增設備</h3>
+      <p class="section-subtitle">
+        填寫設備名稱、類型與位置，新增後會出現在下方清單中。
+      </p>
+    </div>
+
+    <div class="form-grid form-grid-2col">
+      <!-- 名稱 -->
+      <div class="form-row">
+        <label for="new-device-name" class="form-label">設備名稱</label>
+        <input
+          id="new-device-name"
+          class="input"
+          placeholder="例如：客廳冷氣、房間燈"
+        >
+      </div>
+
+      <!-- 類型 -->
+      <div class="form-row">
+        <label for="new-device-type" class="form-label">設備類型</label>
+        <select id="new-device-type" class="input">
+          <option value="air_conditioner">air_conditioner</option>
+          <option value="light">light</option>
+        </select>
+        <small class="form-hint">
+          目前示範類型：冷氣（air_conditioner）、燈具（light）
+        </small>
+      </div>
+
+      <!-- 型號 -->
+      <div class="form-row">
+        <label for="new-device-model" class="form-label">型號（選填）</label>
+        <input
+          id="new-device-model"
+          class="input"
+          placeholder="例如：DAIKIN-ABC123"
+        >
+      </div>
+
+      <!-- 位置 -->
+      <div class="form-row">
+        <label for="new-device-location" class="form-label">位置（選填）</label>
+        <input
+          id="new-device-location"
+          class="input"
+          placeholder="例如：客廳 / 主臥 / 書房"
+        >
+      </div>
+
+      <!-- 額定功率 -->
+      <div class="form-row">
+        <label for="new-device-rated" class="form-label">額定功率 (kW)</label>
+        <input
+          id="new-device-rated"
+          type="number"
+          step="0.01"
+          class="input input-sm"
+          placeholder="例如：1.20"
+        >
+        <small class="form-hint">
+          用來估算用電量的參考值，可之後再調整。
+        </small>
+      </div>
+
+      <!-- user_id -->
+      <div class="form-row">
+        <label for="new-device-user" class="form-label">user_id</label>
+        <input
+          id="new-device-user"
+          type="number"
+          value="1"
+          class="input input-sm"
+        >
+        <small class="form-hint">
+          Demo 用的帳號 ID，實作時可改成登入使用者。
+        </small>
+      </div>
+    </div>
+
+    <div class="form-footer">
+      <button id="btn-add-device" class="btn btn-main">新增設備</button>
+      <div id="add-device-msg" class="cfg-message"></div>
+    </div>
+  </section>
+
+  <!-- 設備清單 -->
+  <section class="card">
+    <div class="section-header">
+      <h3 class="card-title">設備清單</h3>
+      <p class="section-subtitle">
+        這裡會顯示目前系統中的所有設備，並提供開關、刪除等操作。
+      </p>
+    </div>
+    <div id="device-list" class="device-list">
+      載入中...
+    </div>
+  </section>
+</div>
+
+<!-- 刪除確認 Modal -->
+<div id="delete-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h4 class="modal-title">確定要刪除這個設備？</h4>
+    </div>
+    <div class="modal-body">
+      <p>刪除後將無法復原，相關排程與自動控制設定也會一併失效。</p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" onclick="hideDeleteModal()" class="btn btn-secondary btn-sm">
+        取消
+      </button>
+      <button type="button" onclick="confirmDelete()" class="btn btn-danger btn-sm">
+        確定刪除
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // 頁面載入後先渲染設備清單
+  (async () => {
+    if (typeof renderDeviceList === 'function') {
+      await renderDeviceList();
+    }
+  })();
+
+  // 新增設備按鈕事件
+  document.getElementById('btn-add-device').addEventListener('click', async () => {
+    const name = document.getElementById('new-device-name').value.trim();
+    const device_type = document.getElementById('new-device-type').value;
+    const model_number = document.getElementById('new-device-model').value.trim() || null;
+    const location = document.getElementById('new-device-location').value.trim() || null;
+    const rated_power = parseFloat(document.getElementById('new-device-rated').value) || null;
+    const user_id = parseInt(document.getElementById('new-device-user').value) || 1;
+
+    const payload = {
+      device_name: name,
+      device_type,
+      model_number,
+      location,
+      rated_power,
+      user_id
+    };
+
+    const msgEl = document.getElementById('add-device-msg');
+    msgEl.className = 'cfg-message'; // 先清空顏色
+
+    try {
+      const res = await addDevice(payload);
+
+      if (res && res.ok) {
+        const dev = res.device || {};
+        msgEl.classList.add('msg-success');
+        msgEl.textContent = `新增成功：${dev.device_name || name} (ID: ${dev.device_id || '—'})`;
+
+        // 清空欄位
+        document.getElementById('new-device-name').value = '';
+        document.getElementById('new-device-model').value = '';
+        document.getElementById('new-device-location').value = '';
+        document.getElementById('new-device-rated').value = '';
+
+        // 重新渲染清單
+        if (typeof renderDeviceList === 'function') {
+          await renderDeviceList();
+        }
+      } else {
+        msgEl.classList.add('msg-error');
+        const err = res && res.msg ? res.msg : JSON.stringify(res);
+        msgEl.textContent = `新增失敗：${err}`;
+      }
+    } catch (e) {
+      console.error(e);
+      msgEl.classList.add('msg-error');
+      msgEl.textContent = '新增失敗：發生例外錯誤';
+    }
+  });
+</script>
+{% endblock %}
+
+/* ===== 電器控制頁專用樣式 ===== */
+
+/* 新增設備區：兩欄排版（較寬螢幕才啟用） */
+.form-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 24px;
+}
+
+@media (max-width: 720px) {
+  .form-grid-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.section-header {
+  margin-bottom: 10px;
+}
+
+.section-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+/* 工具列卡片（上方狀態列） */
+.card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.toolbar-msg {
+  font-size: 0.85rem;
+  color: #444;
+}
+
+/* 設備清單容器：留點空間給未來的列表樣式 */
+.device-list {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+/* 新增結果訊息顏色 */
+.msg-success {
+  color: #0e8a3b;
+}
+
+.msg-error {
+  color: #c0392b;
+}
+
+/* ===== Modal（刪除確認） ===== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2000;
+  display: flex;            /* JS 會控制 display: none / flex */
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: 12px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  padding: 16px 18px 14px;
+}
+
+.modal-header {
+  margin-bottom: 6px;
+}
+
+.modal-title {
+  font-size: 1rem;
+  margin: 0;
+}
+
+.modal-body {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 按鈕補充款式 */
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.8rem;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: #fff;
+  border-color: #e74c3c;
+  box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}

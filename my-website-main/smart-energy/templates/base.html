@@ -1,0 +1,263 @@
+<!-- base.html -->
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart Energy{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+</head>
+
+<body>
+  <div class="layout">
+
+    <!-- =============================== -->
+    <!-- 頂部導覽列 -->
+    <!-- =============================== -->
+    <header class="site-header">
+      <div class="site-header-inner">
+        <!-- 左側：Logo + 標題 -->
+        <div class="brand">
+          <div class="brand-logo">⚡</div>
+          <div class="brand-text">
+            <h1 class="brand-title">Smart Energy 智慧能源系統</h1>
+            <p class="brand-subtitle">家庭用電監控與自動控制面板</p>
+          </div>
+        </div>
+
+        <!-- 右側：導覽列 -->
+        <nav class="site-nav">
+          <a class="nav-link" href="{{ url_for('index') }}">首頁</a>
+          <a class="nav-link" href="/ui/device">電器控制</a>
+          <a class="nav-link" href="/ui/usage">用電統計</a>
+          <a class="nav-link" href="/ui/auto">自動控制</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- =============================== -->
+    <!-- 主內容區 -->
+    <!-- =============================== -->
+    <main class="container main-container">
+      {# 顯示 flash 訊息 #}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list">
+            {% for cat, msg in messages %}
+              <li class="flash-item flash-{{ cat }}">{{ msg }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- =============================== -->
+    <!-- 頁尾區 -->
+    <!-- =============================== -->
+    <footer class="site-footer">
+      <div class="site-footer-inner">
+        <small>© 2025 Smart Energy System · Demo UI</small>
+      </div>
+    </footer>
+
+  </div>
+</body>
+</html>
+
+/* ===== 全站共用版面：框架、導覽列、頁尾 ===== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC",
+               system-ui, -system-ui, sans-serif;
+  background: #f5f6fb;
+  color: #333;
+}
+
+/* 讓頁面高度充滿整個視窗，頁尾可以黏在底部 */
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ========== Header ========== */
+
+.site-header {
+  background: linear-gradient(135deg, #2f80ed, #56ccf2);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.site-header-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* 左側品牌區 */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 20px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+/* 右側導覽列 */
+
+.site-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nav-link {
+  position: relative;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: #eaf4ff;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.05s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  transform: translateY(1px);
+}
+
+/* 如果有需要做「目前頁面」高亮，可在後端加 class="nav-link is-active" */
+.nav-link.is-active {
+  background: #ffffff;
+  color: #2f80ed;
+}
+
+/* 手機寬度時讓 header 自動換行排版 */
+
+@media (max-width: 640px) {
+  .site-header-inner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .site-nav {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+/* ========== 主內容區 ========== */
+
+.main-container {
+  flex: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* flash 訊息 */
+
+.flash-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flash-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+/* 依照 flash 類別加顏色：success / error / info / warning */
+
+.flash-success {
+  background: #e6f9ee;
+  color: #1b7c3b;
+  border: 1px solid #c4edd6;
+}
+
+.flash-error {
+  background: #ffecec;
+  color: #c0392b;
+  border: 1px solid #f4b6b0;
+}
+
+.flash-info {
+  background: #e8f3ff;
+  color: #1b4f8f;
+  border: 1px solid #c4ddff;
+}
+
+.flash-warning {
+  background: #fff7e6;
+  color: #a26713;
+  border: 1px solid #f5ddab;
+}
+
+/* ========== 頁尾 ========== */
+
+.site-footer {
+  border-top: 1px solid #e1e3ed;
+  background: #f9fafc;
+}
+
+.site-footer-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 10px 20px 14px;
+  font-size: 0.8rem;
+  color: #777;
+  text-align: center;
+}
