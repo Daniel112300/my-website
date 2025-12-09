@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+
+{% block title %}自動控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<h2>自動控制 / 溫度判斷</h2>
+
+<section style="margin-top:16px">
+  <h3>設定</h3>
+  <div style="margin-bottom:8px">
+    當前溫度 (°C)：<input type="number" id="cfg-simulated" step="0.1" style="width:100px" placeholder="自動"> 
+    <button id="btn-set-sim">設定模擬溫度</button>
+    <small style="color:#666; margin-left: 8px;">(留空則自動偵測)</small>
+  </div>
+
+  <div style="margin-bottom:8px">
+    目標溫度 (°C)：<input type="number" id="cfg-target" step="0.5" style="width:100px">（預設值）
+  </div>
+
+  <div style="margin-bottom:8px">
+    監控間隔(min)：<input type="number" id="cfg-interval" style="width:80px">（預設 30）
+  </div>
+
+  <div style="margin-bottom:10px">
+    自動控制：<span id="auto-status" style="font-weight:bold; color:blue">-</span> 
+    <button id="btn-auto-toggle">切換自動控制</button>
+  </div>
+
+  <button id="btn-update-config" style="background-color: #4CAF50; color: white;">更新設定</button>
+  <div id="cfg-msg" style="margin-top:8px; color: green; height: 20px;"></div>
+</section>
+
+<hr style="margin: 20px 0; border: 0; border-top: 1px solid #ccc;">
+
+<section>
+  <h3>手動操作與狀態</h3>
+  
+  <!-- 新增的立即檢查按鈕 -->
+  <button id="btn-check-now" style="font-size: 1.1em; padding: 8px 16px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
+    ⚡ 立即檢查溫度並執行
+  </button>
+
+  <div id="check-result" style="margin-top: 15px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 5px; display: none;">
+    <div style="font-size: 1.2em; margin-bottom: 10px;">
+      目前溫度: <span id="res-current" style="font-weight:bold; color: #d32f2f;">-</span>°C / 
+      目標: <span id="res-target" style="font-weight:bold;">-</span>°C
+    </div>
+    <div style="margin-bottom: 10px;">
+      執行動作: <span id="res-action" style="font-weight:bold; padding: 4px 8px; border-radius: 4px; color: white;">-</span>
+    </div>
+    <div style="color: #555; font-style: italic;">
+      原因: <span id="res-reason">-</span>
+    </div>
+    <div style="margin-top: 8px; font-size: 0.9em; color: #888;">
+      時間: <span id="res-time">-</span>
+    </div>
+  </div>
+</section>
+
+<!-- 強制更新快取 ?v=2 -->
+<script src="{{ url_for('static', filename='js/app.js') }}?v=2"></script>
+<script>
+  // 頁面載入時自動讀取設定
+  async function initConfig(){
+    try {
+      // 雙重保險：確保函式已載入
+      if (typeof getAutoConfig !== 'function') {
+        console.warn("getAutoConfig not loaded yet, retrying...");
+        setTimeout(initConfig, 500); 
+        return;
+      }
+
+      const res = await getAutoConfig();
+      if(res){
+        if(res.target_temp!==undefined) document.getElementById('cfg-target').value = res.target_temp;
+        if(res.monitor_interval!==undefined) document.getElementById('cfg-interval').value = Math.floor(res.monitor_interval/60);
+        
+        // 模擬溫度
+        document.getElementById('cfg-simulated').value = (res.simulated_temp === null) ? '' : res.simulated_temp;
+        
+        if(res.monitor_enabled!==undefined){
+          const statusEl = document.getElementById('auto-status');
+          const btnEl = document.getElementById('btn-auto-toggle');
+          
+          if(res.monitor_enabled) {
+            statusEl.textContent = 'ON (開啟中)';
+            statusEl.style.color = 'green';
+            btnEl.textContent = '停止自動控制';
+          } else {
+            statusEl.textContent = 'OFF (已停止)';
+            statusEl.style.color = 'red';
+            btnEl.textContent = '啟動自動控制';
+          }
+        }
+      }
+    } catch(e) {
+      console.error("Init config error:", e);
+    }
+  }
+  
+  window.addEventListener('load', initConfig);
+
+  // 設定模擬溫度
+  document.getElementById('btn-set-sim').addEventListener('click', async () => {
+    const v = document.getElementById('cfg-simulated').value;
+    const val = v === '' ? null : parseFloat(v);
+    
+    const res = await updateAutoConfig({simulated_temp: val});
+    
+    const msgEl = document.getElementById('cfg-msg');
+    if(res && res.ok){
+      msgEl.style.color = 'green';
+      msgEl.textContent = val === null ? '已清除模擬溫度，恢復自動偵測' : `模擬溫度已設定為 ${val}°C`;
+    } else {
+      msgEl.style.color = 'red';
+      msgEl.textContent = '設定失敗: ' + JSON.stringify(res);
+    }
+  });
+
+  // 立即檢查按鈕邏輯
+  document.getElementById('btn-check-now').addEventListener('click', async () => {
+    const resultDiv = document.getElementById('check-result');
+    resultDiv.style.display = 'block';
+    resultDiv.style.opacity = '0.5'; 
+    
+    try {
+      const res = await checkAuto();
+      resultDiv.style.opacity = '1';
+      
+      if(res && res.ok === false && res.msg) {
+         alert("檢查失敗: " + res.msg);
+         return;
+      }
+
+      document.getElementById('res-current').textContent = res.current_temp;
+      document.getElementById('res-target').textContent = res.target_temp;
+      document.getElementById('res-reason').textContent = res.reason;
+      document.getElementById('res-time').textContent = res.timestamp;
+      
+      const actionEl = document.getElementById('res-action');
+      if(res.action === 'turn_on') {
+        actionEl.textContent = '開啟冷氣 (Turn On)';
+        actionEl.style.backgroundColor = '#4CAF50'; 
+      } else {
+        actionEl.textContent = '關閉冷氣 (Turn Off)';
+        actionEl.style.backgroundColor = '#757575'; 
+      }
+      
+    } catch(e) {
+      console.error(e);
+      alert("連線錯誤");
+    }
+  });
+
+  // 更新一般設定
+  document.getElementById('btn-update-config').addEventListener('click', async () => {
+    const target = parseFloat(document.getElementById('cfg-target').value);
+    const intervalMin = parseInt(document.getElementById('cfg-interval').value) || 30;
+    const intervalSec = intervalMin * 60;
+    
+    const res = await updateAutoConfig({target_temp: target, interval: intervalSec});
+    
+    const msgEl = document.getElementById('cfg-msg');
+    msgEl.textContent = res && res.ok ? '設定已更新成功！' : '更新失敗';
+    msgEl.style.color = res && res.ok ? 'green' : 'red';
+    
+    await initConfig();
+  });
+
+  // 切換自動監控開關
+  document.getElementById('btn-auto-toggle').addEventListener('click', async () => {
+    const statusText = document.getElementById('auto-status').textContent;
+    const isRunning = statusText.includes('ON');
+    
+    let res;
+    if(isRunning){
+      res = await stopMonitor();
+    } else {
+      const minutes = parseInt(document.getElementById('cfg-interval').value) || 30;
+      res = await startMonitor(minutes*60);
+    }
+    
+    const msgEl = document.getElementById('cfg-msg');
+    msgEl.textContent = res && res.ok ? res.msg : '操作失敗';
+    
+    await initConfig();
+  });
+</script>
+
+{% endblock %}

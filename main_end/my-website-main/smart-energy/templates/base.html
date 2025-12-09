@@ -1,0 +1,60 @@
+<!-- base.html -->
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Smart Energy{% endblock %}</title>
+  <!-- v=99 強制更新，避免快取到舊的壞掉檔案 -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}?v=99">
+</head>
+
+<body>
+  <!-- 頂部導覽列 (Blue-Purple Gradient) -->
+  <header class="site-header">
+    <div style="display: flex; align-items: center;">
+      <span style="font-size: 1.5rem; margin-right: 10px;">⚡</span>
+      <h1>Smart Energy</h1>
+      
+      <!-- 選單放回這裡 -->
+      <nav>
+        <a href="{{ url_for('index') }}">首頁</a>
+        <a href="/ui/device">電器控制</a>
+        <a href="/ui/usage">用電統計</a>
+        <a href="/ui/auto">智慧溫控</a>
+      </nav>
+    </div>
+    
+    {% if current_user.is_authenticated %}
+    <div class="user-info">
+        <span>👤 {{ current_user.username }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout">登出</a>
+    </div>
+    {% endif %}
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flash" style="list-style:none; padding:0; margin-bottom:20px;">
+          {% for cat, msg in messages %}
+            <li class="flash-{{ 'danger' if cat == 'error' else cat }}" 
+                style="padding:10px; border-radius:8px; background:#fff; border-left:5px solid #ccc; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+              {{ msg }}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- 版權文字固定在右下角 -->
+  <footer class="site-footer">
+    © 2025 Smart Energy System
+  </footer>
+  
+  {% block extra %}{% endblock %}
+</body>
+</html>

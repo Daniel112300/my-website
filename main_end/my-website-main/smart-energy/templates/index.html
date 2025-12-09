@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}首頁 - 功能選單{% endblock %}
+
+{% block content %}
+<div style="text-align: center; margin-bottom: 3rem; margin-top: 2rem;">
+  <h2 style="border: none; font-size: 2.5rem; margin-bottom: 10px;">
+    👋 歡迎回來，{{ current_user.username }}
+  </h2>
+  <p style="color: #718096; font-size: 1.1rem;">請選擇您要執行的功能</p>
+</div>
+
+<!-- 功能大按鈕區塊 -->
+<div class="features-grid" style="max-width: 900px; margin: 0 auto;">
+  
+  <!-- 按鈕 1：電器控制 -->
+  <div class="feature-card" onclick="location.href='/ui/device'" style="cursor: pointer; transition: transform 0.2s;">
+    <div class="feature-icon-circle" style="background: #e3f2fd; color: #1976d2;">
+      🔌
+    </div>
+    <h3>電器控制</h3>
+    <p>開關燈光、冷氣與設備管理</p>
+  </div>
+
+  <!-- 按鈕 2：用電統計 -->
+  <div class="feature-card" onclick="location.href='/ui/usage'" style="cursor: pointer; transition: transform 0.2s;">
+    <div class="feature-icon-circle" style="background: #e8f5e9; color: #388e3c;">
+      📊
+    </div>
+    <h3>用電統計</h3>
+    <p>查看每日耗電量與電費報表</p>
+  </div>
+
+  <!-- 按鈕 3：智慧溫控 -->
+  <div class="feature-card" onclick="location.href='/ui/auto'" style="cursor: pointer; transition: transform 0.2s;">
+    <div class="feature-icon-circle" style="background: #fff3e0; color: #f57c00;">
+      🌡️
+    </div>
+    <h3>智慧溫控</h3>
+    <p>設定自動化規則與溫度監控</p>
+  </div>
+
+</div>
+
+<!-- 簡單的 CSS 讓按鈕好看一點 -->
+<style>
+  .feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    border-color: var(--primary-color);
+  }
+  .feature-icon-circle {
+    font-size: 3rem;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem auto;
+  }
+</style>
+{% endblock %}

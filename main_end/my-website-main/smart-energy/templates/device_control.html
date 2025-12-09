@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}電器控制 - Smart Energy{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <h2 style="margin-bottom: 0; border: none;">🔌 電器控制中心</h2>
+  <div style="text-align: right; font-size: 0.9rem; color: #666; background: #fff; padding: 8px 15px; border-radius: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <div>自動監控: <span id="monitor-indicator" style="font-weight: bold;">檢查中...</span></div>
+    <div style="font-size: 0.8rem; color: #999;">最後刷新: <span id="last-update-time">-</span></div>
+  </div>
+</div>
+
+<div id="device-actions">
+  <span id="device-msg" style="margin-left:12px; font-weight:bold;"></span>
+</div>
+
+<div id="delete-modal" style="display:none;position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;backdrop-filter: blur(3px);">
+  <div style="background:#fff;padding:25px;border-radius:12px;max-width:400px;width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+      <h3 style="margin-top:0; color:#e53e3e;">⚠️ 確認刪除</h3>
+      <div class="delete-modal-label" style="margin-bottom:20px; font-size: 1.1rem;">確定要刪除此設備嗎？</div>
+      <div style="text-align:right; display: flex; gap: 10px; justify-content: flex-end;">
+        <button onclick="hideDeleteModal()" style="background: #edf2f7; color: #4a5568; padding:8px 16px; border:none; border-radius:6px; cursor:pointer;">取消</button>
+        <button onclick="confirmDelete()" style="background: #e53e3e; color: #fff; padding:8px 16px; border:none; border-radius:6px; cursor:pointer;">確定刪除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="card-panel">
+  <h3 style="margin-top:0; margin-bottom:1rem;">🛠️ 新增設備</h3>
+  <div class="form-grid">
+    <div><label>名稱</label><input id="new-device-name" placeholder="例如：書房冷氣"></div>
+    <div><label>類型</label><select id="new-device-type"><option value="air_conditioner">冷氣 (Air Con)</option><option value="light">電燈 (Light)</option></select></div>
+    <div><label>型號</label><input id="new-device-model" placeholder="選填"></div>
+    <div><label>位置</label><input id="new-device-location" placeholder="例如：書房"></div>
+    <div><label>額定功率(kW)</label><input id="new-device-rated" type="number" step="0.01" placeholder="例如：2.8"></div>
+    <div><button id="btn-add-device">＋ 新增</button></div>
+  </div>
+  <div id="add-device-msg" style="margin-top:10px; font-weight: bold; min-height: 1.5em;"></div>
+</section>
+
+<div id="device-list">載入中...</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}?v=6"></script>
+<script>
+  if (typeof renderDeviceList === 'undefined') {
+      document.getElementById('device-list').innerHTML = '<p style="color:red">錯誤：app.js 未正確載入，請按 Ctrl+F5 強制重新整理。</p>';
+  } else {
+      initPage();
+  }
+  async function initPage() { await refreshData(); }
+  async function refreshData() {
+      await renderDeviceList();
+      const now = new Date();
+      document.getElementById('last-update-time').textContent = now.toLocaleTimeString();
+      try {
+          const statusRes = await fetch('/auto/monitor/status?_t=' + now.getTime());
+          const statusData = await statusRes.json();
+          const indicator = document.getElementById('monitor-indicator');
+          if (statusData.enabled) {
+              indicator.textContent = "🟢 啟動中"; indicator.style.color = "#4CAF50";
+          } else {
+              indicator.textContent = "🔴 已停止"; indicator.style.color = "#e53e3e";
+          }
+      } catch(e) {}
+  }
+  document.getElementById('btn-add-device').addEventListener('click', async () => {
+    const user_id = 1; 
+    const name = document.getElementById('new-device-name').value.trim();
+    const device_type = document.getElementById('new-device-type').value;
+    const model_number = document.getElementById('new-device-model').value.trim() || null;
+    const location = document.getElementById('new-device-location').value.trim() || null;
+    const rated_power = parseFloat(document.getElementById('new-device-rated').value) || null;
+    if(!name) { alert("請輸入設備名稱！"); return; }
+    const payload = { device_name: name, device_type, model_number, location, rated_power, user_id };
+    const btn = document.getElementById('btn-add-device');
+    btn.disabled = true; btn.textContent = "處理中...";
+    const res = await addDevice(payload);
+    const msgEl = document.getElementById('add-device-msg');
+    btn.disabled = false; btn.textContent = "＋ 新增";
+    if(res && res.ok){
+      msgEl.style.color = 'var(--accent-color)';
+      msgEl.textContent = `✅ 新增成功`;
+      document.getElementById('new-device-name').value = '';
+      await refreshData();
+    } else {
+      msgEl.style.color = 'var(--danger-color)';
+      msgEl.textContent = `❌ 新增失敗：${res.msg || 'Error'}`;
+    }
+  });
+</script>
+{% endblock %}

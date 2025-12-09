@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}每日用電 - Smart Energy{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <h2 style="margin: 0; border: none;">📊 每日用電統計</h2>
+</div>
+
+<!-- 查詢區塊 -->
+<section class="card-panel">
+  <div style="display: flex; align-items: flex-end; gap: 15px; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 200px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: 600;">開始日期</label>
+      <input type="date" id="start-date" style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid #ccc;">
+    </div>
+    <div style="flex: 1; min-width: 200px;">
+      <label style="display: block; margin-bottom: 5px; font-weight: 600;">結束日期</label>
+      <input type="date" id="end-date" style="width: 100%; padding: 0.6rem; border-radius: 8px; border: 1px solid #ccc;">
+    </div>
+    <button id="query-usage" style="background: var(--primary-gradient); color: white; height: 42px; padding: 0 2rem; border-radius: 8px; border:none; cursor:pointer;">
+      🔍 查詢
+    </button>
+  </div>
+</section>
+
+<!-- 顯示結果的區域 -->
+<div id="usage-results" style="margin-top: 15px;">載入中...</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}?v=3"></script>
+<script>
+  const startInput = document.getElementById('start-date');
+  const endInput = document.getElementById('end-date');
+  startInput.value = "2025-11-20";
+  endInput.value = "2025-11-29";
+  document.getElementById('query-usage').addEventListener('click', () => {
+    const s = startInput.value; const e = endInput.value;
+    if(s && e) { renderUsageDaily(s, e); } else { alert("請選擇完整的日期範圍"); }
+  });
+  setTimeout(() => { renderUsageDaily(startInput.value, endInput.value); }, 100);
+</script>
+{% endblock %}
+
+{% block extra %}
+<!-- 新增用電紀錄表單 -->
+<div class="container">
+  <section class="card-panel" style="border-left: 5px solid var(--accent-color);">
+    <h3 style="margin-top:0; color: var(--accent-color); margin-bottom: 1rem;">⚡ 手動新增用電紀錄</h3>
+    
+    <!-- 這裡使用了 base.css 定義的 .form-grid，保證整齊 -->
+    <div class="form-grid">
+        <div><label>設備 ID</label><input id="new-usage-device" type="number" value="1"></div>
+        <div><label>用電量 (kWh)</label><input id="new-usage-kwh" type="number" step="0.1" placeholder="度數"></div>
+        <div><label>功率 (W)</label><input id="new-usage-watts" type="number" placeholder="瓦數 (選填)"></div>
+        <div><label>時數 (h)</label><input id="new-usage-hours" type="number" placeholder="小時 (選填)"></div>
+        <div><label>日期</label><input id="new-usage-date" type="date"></div>
+        <div><button id="btn-add-usage">＋ 新增紀錄</button></div>
+    </div>
+    <div id="add-usage-msg" style="margin-top:15px; font-weight: bold;"></div>
+  </section>
+</div>
+
+<script>
+  document.getElementById('new-usage-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('btn-add-usage').addEventListener('click', async () => {
+    const device_id = parseInt(document.getElementById('new-usage-device').value);
+    const kwhVal = document.getElementById('new-usage-kwh').value;
+    const wattsVal = document.getElementById('new-usage-watts').value;
+    const hoursVal = document.getElementById('new-usage-hours').value;
+    const day = document.getElementById('new-usage-date').value;
+    const payload = { device_id };
+    if(kwhVal) payload.kwh = parseFloat(kwhVal);
+    if(wattsVal) payload.power_watts = parseFloat(wattsVal);
+    if(hoursVal) payload.hours = parseFloat(hoursVal);
+    if(day) payload.day = day;
+    const res = await addUsage(payload);
+    const msgEl = document.getElementById('add-usage-msg');
+    if(res && res.ok){
+      msgEl.style.color = 'var(--accent-color)';
+      msgEl.textContent = '✅ 新增成功！';
+      const s = document.getElementById('start-date').value;
+      const e = document.getElementById('end-date').value;
+      if (day >= s && day <= e) renderUsageDaily(s, e);
+    } else {
+      msgEl.style.color = 'var(--danger-color)';
+      msgEl.textContent = '❌ 失敗: ' + (res.msg || '未知錯誤');
+    }
+  });
+</script>
+{% endblock %}
